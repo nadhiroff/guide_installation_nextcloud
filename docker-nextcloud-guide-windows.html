@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guide Docker & Nextcloud — Windows 11</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10; --surface: #111318; --border: #1e2330;
+    --accent: #00d4ff; --accent2: #7c3aed;
+    --green: #00ff88; --orange: #ff6b35;
+    --text: #e2e8f0; --muted: #64748b; --done: #0f1f0f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+  .container { max-width: 880px; margin: 0 auto; padding: 60px 24px 120px; position: relative; z-index: 1; }
+
+  header { text-align: center; margin-bottom: 52px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,212,255,.08); border: 1px solid rgba(0,212,255,.2);
+    color: var(--accent); font-family: 'JetBrains Mono',monospace;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 100px; margin-bottom: 22px;
+  }
+  .badge::before { content:''; width:6px; height:6px; background:var(--accent); border-radius:50%; animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(.8);} }
+  h1 { font-size: clamp(1.9rem,5vw,3rem); font-weight:800; line-height:1.15; margin-bottom:14px; }
+  h1 span { background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .subtitle { color:var(--muted); font-size:.95rem; }
+
+  .progress-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 24px; margin-bottom:40px; display:flex; align-items:center; gap:16px; }
+  .progress-label { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); white-space:nowrap; }
+  .progress-bar { flex:1; height:6px; background:var(--border); border-radius:100px; overflow:hidden; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:100px; transition:width .5s ease; width:0%; }
+  .progress-count { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent); white-space:nowrap; }
+
+  .section-label { display:flex; align-items:center; gap:12px; margin:36px 0 14px; }
+  .section-label span { background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.25); color:#a78bfa; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; padding:5px 14px; border-radius:100px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .steps { display:flex; flex-direction:column; gap:14px; }
+  .step { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:border-color .3s; }
+  .step:hover { border-color:rgba(0,212,255,.18); }
+  .step.active { border-color:var(--accent); box-shadow:0 0 0 1px rgba(0,212,255,.08),0 8px 32px rgba(0,212,255,.07); }
+  .step.completed { border-color:rgba(0,255,136,.25); background:var(--done); }
+  .step.completed .step-header { opacity:.65; }
+
+  .step-header { display:flex; align-items:center; gap:16px; padding:17px 22px; cursor:pointer; user-select:none; transition:background .2s; }
+  .step-header:hover { background:rgba(255,255,255,.02); }
+  .step-num { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; flex-shrink:0; transition:all .3s; }
+  .step:not(.completed) .step-num { background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2); color:var(--accent); }
+  .step.active .step-num { background:var(--accent); color:#000; box-shadow:0 0 18px rgba(0,212,255,.4); }
+  .step.completed .step-num { background:var(--green); color:#000; border-color:var(--green); }
+  .step-title-wrap { flex:1; min-width:0; }
+  .step-category { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+  .step-title { font-size:.95rem; font-weight:600; color:var(--text); }
+  .step-toggle { color:var(--muted); font-size:16px; transition:transform .3s; flex-shrink:0; }
+  .step.open .step-toggle { transform:rotate(180deg); }
+
+  .step-body { max-height:0; overflow:hidden; transition:max-height .45s ease; }
+  .step.open .step-body { max-height:3500px; }
+  .step-content { padding:20px 22px 22px; border-top:1px solid var(--border); }
+  .step.completed .step-content { border-color:rgba(0,255,136,.1); }
+
+  .info-box { border-radius:10px; padding:13px 16px; margin-bottom:14px; display:flex; gap:11px; align-items:flex-start; font-size:.84rem; line-height:1.65; }
+  .info-box.warning { background:rgba(255,107,53,.08); border:1px solid rgba(255,107,53,.2); color:#ffa07a; }
+  .info-box.tip { background:rgba(0,212,255,.06); border:1px solid rgba(0,212,255,.15); color:#9fd8ef; }
+  .info-box.success { background:rgba(0,255,136,.06); border:1px solid rgba(0,255,136,.15); color:#7de8b0; }
+  .info-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
+
+  .step-desc { color:var(--muted); font-size:.87rem; line-height:1.75; margin-bottom:16px; }
+  .step-desc strong { color:var(--text); }
+
+  .sub-steps { display:flex; flex-direction:column; gap:11px; margin-bottom:14px; }
+  .sub-step { display:flex; gap:12px; align-items:flex-start; }
+  .sub-num { width:22px; height:22px; border-radius:6px; background:rgba(124,58,237,.14); border:1px solid rgba(124,58,237,.3); color:#a78bfa; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+  .sub-text { font-size:.84rem; line-height:1.65; color:var(--text); }
+  .hl { background:rgba(0,212,255,.1); color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:.78em; padding:1px 6px; border-radius:4px; }
+
+  .code-block { background:#0d1117; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:14px; }
+  .code-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; border-bottom:1px solid var(--border); background:rgba(255,255,255,.025); }
+  .code-lang { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .code-lang::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--orange); }
+  .code-body { padding:14px 16px; font-family:'JetBrains Mono',monospace; font-size:.78rem; line-height:1.85; color:#e2e8f0; overflow-x:auto; white-space:pre; }
+  .code-body .cm { color:#79c0ff; } .code-body .fl { color:#ffa657; } .code-body .st { color:#a5d6ff; }
+  .code-body .co { color:#8b949e; } .code-body .ky { color:#ff7b72; } .code-body .vl { color:#a5d6ff; } .code-body .en { color:#d2a8ff; }
+
+  .copy-btn { background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2); color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:4px 10px; border-radius:6px; cursor:pointer; transition:all .2s; }
+  .copy-btn:hover { background:rgba(0,212,255,.15); transform:translateY(-1px); }
+  .copy-btn.copied { background:rgba(0,255,136,.1); border-color:rgba(0,255,136,.3); color:var(--green); }
+
+  .done-btn { display:inline-flex; align-items:center; gap:8px; background:transparent; border:1px solid rgba(0,255,136,.3); color:var(--green); font-family:'Syne',sans-serif; font-size:.85rem; font-weight:600; padding:9px 20px; border-radius:8px; cursor:pointer; margin-top:8px; transition:all .2s; }
+  .done-btn:hover { background:rgba(0,255,136,.07); transform:translateY(-1px); }
+  .step.completed .done-btn { background:rgba(0,255,136,.08); }
+
+  .completion { display:none; text-align:center; padding:60px 24px; animation:fadeUp .6s ease; }
+  .completion.show { display:block; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);} }
+  .completion-icon { font-size:60px; margin-bottom:20px; animation:bounce .6s ease; }
+  @keyframes bounce { 0%{transform:scale(0);}60%{transform:scale(1.2);}100%{transform:scale(1);} }
+  .completion h2 { font-size:2rem; font-weight:800; margin-bottom:10px; background:linear-gradient(135deg,var(--green),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .completion p { color:var(--muted); font-size:.95rem; margin-bottom:6px; }
+  .url-box { display:inline-flex; align-items:center; gap:10px; background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2); padding:12px 22px; border-radius:10px; margin-top:20px; font-family:'JetBrains Mono',monospace; color:var(--accent); font-size:.95rem; }
+
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="badge">Guide complet d'installation</div>
+    <h1>Docker & <span>Nextcloud</span><br>sur Windows 11</h1>
+    <p class="subtitle">WSL2 → Docker Desktop → Nextcloud → Trusted Domains · 10 étapes détaillées</p>
+  </header>
+
+  <div class="progress-wrap">
+    <span class="progress-label">Progression</span>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <span class="progress-count" id="progressCount">0 / 10</span>
+  </div>
+
+  <div class="steps" id="stepsContainer">
+
+    <!-- ══ SECTION 1 ══ -->
+    <div class="section-label"><span>🛠️ Étapes 1–4 — Activation WSL2</span></div>
+
+    <!-- STEP 1 -->
+    <div class="step active open" data-step="1">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">01</div>
+        <div class="step-title-wrap">
+          <div class="step-category">Prérequis</div>
+          <div class="step-title">Ouvrir PowerShell en Administrateur</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">Toutes les commandes suivantes nécessitent des <strong>droits administrateur</strong>.</p>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Appuie sur <span class="hl">Windows + S</span> et tape <span class="hl">PowerShell</span></div></div>
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Clique droit sur <strong>Windows PowerShell</strong> → <span class="hl">Exécuter en tant qu'administrateur</span></div></div>
+          <div class="sub-step"><div class="sub-num">3</div><div class="sub-text">Clique <strong>Oui</strong> dans la fenêtre UAC qui apparaît</div></div>
+        </div>
+        <div class="info-box warning"><span class="info-icon">⚠️</span><span>Sans droits admin, les commandes <code>dism.exe</code> retourneront une erreur d'accès refusé.</span></div>
+        <button class="done-btn" onclick="markDone(this,1)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step" data-step="2">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">02</div>
+        <div class="step-title-wrap">
+          <div class="step-category">WSL2 — 1/3</div>
+          <div class="step-title">Activer le sous-système Linux (WSL)</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">Active la fonctionnalité <strong>Windows Subsystem for Linux</strong> — le composant de base qui permet à Linux de tourner dans Windows.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell</span><button class="copy-btn" onclick="copyCode(this,'c2')">Copier</button></div>
+          <div class="code-body" id="c2"><span class="cm">dism.exe</span> <span class="fl">/online /enable-feature</span> <span class="fl">/featurename:</span><span class="st">Microsoft-Windows-Subsystem-Linux</span> <span class="fl">/all /norestart</span></div>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Colle la commande dans PowerShell et appuie sur <span class="hl">Entrée</span></div></div>
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Attends le message <strong>"L'opération a réussi"</strong> (ou "The operation completed successfully")</div></div>
+        </div>
+        <div class="info-box tip"><span class="info-icon">💡</span><span><strong>/norestart</strong> évite le redémarrage immédiat pour pouvoir enchaîner les commandes.</span></div>
+        <button class="done-btn" onclick="markDone(this,2)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step" data-step="3">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">03</div>
+        <div class="step-title-wrap">
+          <div class="step-category">WSL2 — 2/3</div>
+          <div class="step-title">Activer la plateforme de machine virtuelle</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">WSL2 fonctionne avec un <strong>vrai noyau Linux dans une VM légère</strong>. Cette commande active le composant de virtualisation nécessaire.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell</span><button class="copy-btn" onclick="copyCode(this,'c3')">Copier</button></div>
+          <div class="code-body" id="c3"><span class="cm">dism.exe</span> <span class="fl">/online /enable-feature</span> <span class="fl">/featurename:</span><span class="st">VirtualMachinePlatform</span> <span class="fl">/all /norestart</span></div>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Exécute la commande dans le même PowerShell admin</div></div>
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Attends à nouveau le message de confirmation de succès</div></div>
+        </div>
+        <div class="info-box warning"><span class="info-icon">⚠️</span><span>Processeur <strong>AMD</strong> → vérifie que <em>SVM Mode</em> est activé dans le BIOS. Processeur <strong>Intel</strong> → c'est <em>Intel VT-x</em>.</span></div>
+        <button class="done-btn" onclick="markDone(this,3)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step" data-step="4">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">04</div>
+        <div class="step-title-wrap">
+          <div class="step-category">WSL2 — 3/3</div>
+          <div class="step-title">Redémarrer & définir WSL2 par défaut</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">Les deux fonctionnalités précédentes nécessitent un <strong>redémarrage complet</strong>. Ensuite on configure WSL pour utiliser la version 2 par défaut.</p>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text"><strong>Redémarre ton PC</strong> : <span class="hl">Windows + X</span> → Arrêter/Redémarrer → Redémarrer</div></div>
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Après le redémarrage, <strong>rouvre PowerShell en admin</strong> (même procédure qu'étape 1)</div></div>
+          <div class="sub-step"><div class="sub-num">3</div><div class="sub-text">Exécute cette commande pour définir WSL2 comme version par défaut :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell</span><button class="copy-btn" onclick="copyCode(this,'c4')">Copier</button></div>
+          <div class="code-body" id="c4"><span class="cm">wsl</span> <span class="fl">--set-default-version</span> <span class="st">2</span></div>
+        </div>
+        <div class="info-box success"><span class="info-icon">✅</span><span>Un message sur les différences WSL1/WSL2 apparaît — c'est normal et confirme que WSL2 est bien activé.</span></div>
+        <button class="done-btn" onclick="markDone(this,4)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- ══ SECTION 2 ══ -->
+    <div class="section-label"><span>🐳 Étapes 5–6 — Docker & Nextcloud</span></div>
+
+    <!-- STEP 5 -->
+    <div class="step" data-step="5">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">05</div>
+        <div class="step-title-wrap">
+          <div class="step-category">Docker Desktop</div>
+          <div class="step-title">Installer & configurer Docker Desktop</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">Docker Desktop est l'interface graphique qui gère Docker sur Windows. Il utilise WSL2 comme backend pour des performances optimales.</p>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Va sur <span class="hl">docker.com/products/docker-desktop</span> et télécharge l'installeur Windows</div></div>
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Lance <strong>Docker Desktop Installer.exe</strong> — coche <span class="hl">Use WSL 2 instead of Hyper-V</span> si demandé</div></div>
+          <div class="sub-step"><div class="sub-num">3</div><div class="sub-text">Accepte les conditions et termine l'installation — Docker peut redémarrer Windows</div></div>
+          <div class="sub-step"><div class="sub-num">4</div><div class="sub-text">Au premier lancement, accepte les <strong>Terms of Service</strong></div></div>
+          <div class="sub-step"><div class="sub-num">5</div><div class="sub-text">Attends que l'icône Docker dans la barre des tâches devienne <strong>verte</strong> — Docker est prêt !</div></div>
+          <div class="sub-step"><div class="sub-num">6</div><div class="sub-text">Vérifie l'installation dans PowerShell :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Vérification</span><button class="copy-btn" onclick="copyCode(this,'c5')">Copier</button></div>
+          <div class="code-body" id="c5"><span class="cm">docker</span> <span class="fl">--version</span>
+<span class="cm">docker</span> compose <span class="fl">version</span></div>
+        </div>
+        <div class="info-box tip"><span class="info-icon">💡</span><span>Si Docker n'est pas reconnu, ferme et réouvre PowerShell. Docker ajoute ses binaires au PATH au démarrage.</span></div>
+        <button class="done-btn" onclick="markDone(this,5)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="step" data-step="6">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">06</div>
+        <div class="step-title-wrap">
+          <div class="step-category">Nextcloud</div>
+          <div class="step-title">Créer le docker-compose.yml & lancer Nextcloud</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">On utilise <strong>Docker Compose</strong> pour démarrer Nextcloud et sa base de données MariaDB en une seule commande.</p>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Crée le dossier <span class="hl">D:\Nextcloud</span></div></div>
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Dans ce dossier, crée un fichier nommé exactement <span class="hl">docker-compose.yml</span> avec ce contenu :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">docker-compose.yml</span><button class="copy-btn" onclick="copyCode(this,'c6yml')">Copier</button></div>
+          <div class="code-body" id="c6yml"><span class="ky">services:</span>
+  <span class="ky">nextcloud:</span>
+    <span class="ky">image:</span> <span class="vl">nextcloud</span>
+    <span class="ky">container_name:</span> <span class="vl">nextcloud</span>
+    <span class="ky">ports:</span>
+      - <span class="st">"8080:80"</span>
+    <span class="ky">volumes:</span>
+      - <span class="vl">nextcloud_data:/var/www/html</span>
+    <span class="ky">environment:</span>
+      - <span class="en">MYSQL_HOST</span>=<span class="vl">db</span>
+      - <span class="en">MYSQL_DATABASE</span>=<span class="vl">nextcloud</span>
+      - <span class="en">MYSQL_USER</span>=<span class="vl">nextcloud</span>
+      - <span class="en">MYSQL_PASSWORD</span>=<span class="vl">monMotDePasse123</span>
+    <span class="ky">depends_on:</span>
+      - <span class="vl">db</span>
+    <span class="ky">restart:</span> <span class="vl">unless-stopped</span>
+
+  <span class="ky">db:</span>
+    <span class="ky">image:</span> <span class="vl">mariadb</span>
+    <span class="ky">container_name:</span> <span class="vl">nextcloud_db</span>
+    <span class="ky">environment:</span>
+      - <span class="en">MYSQL_ROOT_PASSWORD</span>=<span class="vl">rootPass456</span>
+      - <span class="en">MYSQL_DATABASE</span>=<span class="vl">nextcloud</span>
+      - <span class="en">MYSQL_USER</span>=<span class="vl">nextcloud</span>
+      - <span class="en">MYSQL_PASSWORD</span>=<span class="vl">monMotDePasse123</span>
+    <span class="ky">volumes:</span>
+      - <span class="vl">db_data:/var/lib/mysql</span>
+    <span class="ky">restart:</span> <span class="vl">unless-stopped</span>
+
+<span class="ky">volumes:</span>
+  <span class="ky">nextcloud_data:</span>
+  <span class="ky">db_data:</span></div>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">3</div><div class="sub-text">Dans PowerShell, navigue vers le dossier et lance les conteneurs :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Lancer</span><button class="copy-btn" onclick="copyCode(this,'c6up')">Copier</button></div>
+          <div class="code-body" id="c6up"><span class="cm">cd</span> <span class="st">D:\Nextcloud</span>
+<span class="cm">docker</span> compose <span class="fl">up -d</span></div>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">4</div><div class="sub-text">Attends ~2–5 min que Docker télécharge les images (première fois uniquement)</div></div>
+          <div class="sub-step"><div class="sub-num">5</div><div class="sub-text">Ouvre <span class="hl">http://localhost:8080</span> dans ton navigateur et crée ton compte admin</div></div>
+        </div>
+        <div class="info-box warning"><span class="info-icon">⚠️</span><span>Remplace <strong>monMotDePasse123</strong> et <strong>rootPass456</strong> par tes propres mots de passe sécurisés avant de lancer.</span></div>
+        <button class="done-btn" onclick="markDone(this,6)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- ══ SECTION 3 ══ -->
+    <div class="section-label"><span>⚙️ Étape 7 — Gestion des conteneurs</span></div>
+
+    <!-- STEP 7 -->
+    <div class="step" data-step="7">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">07</div>
+        <div class="step-title-wrap">
+          <div class="step-category">Gestion Docker</div>
+          <div class="step-title">Redémarrer & vérifier les conteneurs</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">Si tu vois l'erreur <strong>"container is not running"</strong> ou que Nextcloud ne répond plus, voici comment redémarrer et diagnostiquer.</p>
+
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Va d'abord dans le dossier Nextcloud :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell</span><button class="copy-btn" onclick="copyCode(this,'c7cd')">Copier</button></div>
+          <div class="code-body" id="c7cd"><span class="cm">cd</span> <span class="st">D:\Nextcloud</span></div>
+        </div>
+
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Redémarre tous les conteneurs :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Redémarrer</span><button class="copy-btn" onclick="copyCode(this,'c7up')">Copier</button></div>
+          <div class="code-body" id="c7up"><span class="cm">docker</span> compose <span class="fl">up -d</span>
+<span class="co"># Lance les conteneurs en arrière-plan</span>
+<span class="co"># Si déjà actifs, recrée seulement ceux qui ont changé</span></div>
+        </div>
+
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">3</div><div class="sub-text">Vérifie que les deux conteneurs tournent bien :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Vérifier l'état</span><button class="copy-btn" onclick="copyCode(this,'c7ps')">Copier</button></div>
+          <div class="code-body" id="c7ps"><span class="cm">docker</span> <span class="fl">ps</span>
+<span class="co"># Résultat attendu :</span>
+<span class="co"># NAMES           STATUS</span>
+<span class="co"># nextcloud       Up 2 minutes</span>
+<span class="co"># nextcloud_db    Up 2 minutes</span>
+<span class="co"># Si un conteneur est absent → regarder les logs ci-dessous</span></div>
+        </div>
+
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">4</div><div class="sub-text">Si un conteneur s'arrête, consulte les logs d'erreur :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Logs d'erreur</span><button class="copy-btn" onclick="copyCode(this,'c7logs')">Copier</button></div>
+          <div class="code-body" id="c7logs"><span class="cm">docker</span> compose logs nextcloud
+<span class="cm">docker</span> compose logs db
+<span class="co"># Affiche les erreurs de démarrage</span>
+
+<span class="cm">docker</span> compose logs <span class="fl">-f</span>
+<span class="co"># Mode live : suit les logs en temps réel (Ctrl+C pour quitter)</span></div>
+        </div>
+
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">5</div><div class="sub-text">Toutes les commandes de gestion utiles :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Référence complète</span><button class="copy-btn" onclick="copyCode(this,'c7all')">Copier</button></div>
+          <div class="code-body" id="c7all"><span class="co"># Démarrer les conteneurs</span>
+<span class="cm">docker</span> compose <span class="fl">up -d</span>
+
+<span class="co"># Arrêter les conteneurs (données conservées)</span>
+<span class="cm">docker</span> compose <span class="fl">down</span>
+
+<span class="co"># Redémarrer sans recréer</span>
+<span class="cm">docker</span> compose <span class="fl">restart</span>
+
+<span class="co"># Voir les conteneurs actifs</span>
+<span class="cm">docker</span> <span class="fl">ps</span>
+
+<span class="co"># Voir TOUS les conteneurs (même arrêtés)</span>
+<span class="cm">docker</span> <span class="fl">ps -a</span>
+
+<span class="co"># Mettre à jour Nextcloud et MariaDB</span>
+<span class="cm">docker</span> compose <span class="fl">pull</span> &amp;&amp; <span class="cm">docker</span> compose <span class="fl">up -d</span></div>
+        </div>
+
+        <div class="info-box success"><span class="info-icon">✅</span><span>Après <code>docker compose up -d</code>, attends ~10 secondes puis recharge <strong>http://localhost:8080</strong>.</span></div>
+        <button class="done-btn" onclick="markDone(this,7)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- ══ SECTION 4 ══ -->
+    <div class="section-label"><span>🌐 Étapes 8–10 — Accès par IP & Trusted Domains</span></div>
+
+    <!-- STEP 8 -->
+    <div class="step" data-step="8">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">08</div>
+        <div class="step-title-wrap">
+          <div class="step-category">Trusted Domains — Problème</div>
+          <div class="step-title">Erreur "Accès depuis un domaine non approuvé"</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">Quand tu accèdes via ton <strong>adresse IP locale</strong> (ex: 192.168.88.194) au lieu de localhost, Nextcloud bloque la connexion. Ce problème arrive aussi à chaque changement de réseau WiFi.</p>
+        <div class="info-box warning">
+          <span class="info-icon">⚠️</span>
+          <span>Message : <em>"Accès à partir d'un domaine non approuvé — veuillez contacter votre administrateur. Modifiez la variable trusted_domains dans config/config.php"</em></span>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Trouve ton IP locale actuelle :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Trouver son IP</span><button class="copy-btn" onclick="copyCode(this,'c8ip')">Copier</button></div>
+          <div class="code-body" id="c8ip"><span class="cm">ipconfig</span>
+<span class="co"># Cherche "Adresse IPv4" sous WiFi ou Ethernet</span>
+<span class="co"># Exemple : 192.168.88.194</span></div>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Assure-toi que le conteneur tourne avant de continuer :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell</span><button class="copy-btn" onclick="copyCode(this,'c8ps')">Copier</button></div>
+          <div class="code-body" id="c8ps"><span class="cm">docker</span> <span class="fl">ps</span>
+<span class="co"># Si nextcloud n'apparaît pas :</span>
+<span class="cm">cd</span> <span class="st">D:\Nextcloud</span> &amp;&amp; <span class="cm">docker</span> compose <span class="fl">up -d</span></div>
+        </div>
+        <div class="info-box tip"><span class="info-icon">💡</span><span>L'étape 9 ajoute des <strong>wildcards</strong> qui couvrent automatiquement tous les futurs réseaux — tu n'auras plus jamais ce problème.</span></div>
+        <button class="done-btn" onclick="markDone(this,8)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- STEP 9 -->
+    <div class="step" data-step="9">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">09</div>
+        <div class="step-title-wrap">
+          <div class="step-category">Trusted Domains — Solution</div>
+          <div class="step-title">Ajouter tous les domaines approuvés (une seule fois)</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">On ajoute <strong>5 trusted_domains</strong> : localhost, ton IP actuelle, et des wildcards pour tous les réseaux courants. <strong>À faire une seule fois — ça fonctionnera sur tous tes futurs réseaux.</strong></p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — 5 commandes une par une</span><button class="copy-btn" onclick="copyCode(this,'c9td')">Copier</button></div>
+          <div class="code-body" id="c9td"><span class="co"># 0 — localhost (accès direct sur ta machine)</span>
+<span class="cm">docker</span> exec <span class="fl">-u</span> www-data nextcloud php occ config:system:set trusted_domains <span class="st">0</span> <span class="fl">--value=</span><span class="st">"localhost"</span>
+
+<span class="co"># 1 — Ton IP actuelle (remplace par la tienne via ipconfig)</span>
+<span class="cm">docker</span> exec <span class="fl">-u</span> www-data nextcloud php occ config:system:set trusted_domains <span class="st">1</span> <span class="fl">--value=</span><span class="st">"192.168.88.194"</span>
+
+<span class="co"># 2 — Tous les réseaux 192.168.x.x (WiFi maison, bureau, école...)</span>
+<span class="cm">docker</span> exec <span class="fl">-u</span> www-data nextcloud php occ config:system:set trusted_domains <span class="st">2</span> <span class="fl">--value=</span><span class="st">"192.168.*.*"</span>
+
+<span class="co"># 3 — Réseaux 10.x.x.x (hotspot mobile, VPN, certaines entreprises)</span>
+<span class="cm">docker</span> exec <span class="fl">-u</span> www-data nextcloud php occ config:system:set trusted_domains <span class="st">3</span> <span class="fl">--value=</span><span class="st">"10.*.*.*"</span>
+
+<span class="co"># 4 — Réseaux 172.16.x.x (Docker interne, réseau d'entreprise)</span>
+<span class="cm">docker</span> exec <span class="fl">-u</span> www-data nextcloud php occ config:system:set trusted_domains <span class="st">4</span> <span class="fl">--value=</span><span class="st">"172.16.*.*"</span></div>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Lance les 5 commandes une par une — chacune doit répondre <strong>"System config value trusted_domains => X set to..."</strong></div></div>
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Vérifie que tout est bien enregistré :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Vérification</span><button class="copy-btn" onclick="copyCode(this,'c9verify')">Copier</button></div>
+          <div class="code-body" id="c9verify"><span class="cm">docker</span> exec <span class="fl">-u</span> www-data nextcloud php occ config:system:get trusted_domains
+<span class="co"># Doit afficher les 5 entrées :</span>
+<span class="co"># - localhost</span>
+<span class="co"># - 192.168.88.194</span>
+<span class="co"># - 192.168.*.*</span>
+<span class="co"># - 10.*.*.*</span>
+<span class="co"># - 172.16.*.*</span></div>
+        </div>
+        <div class="info-box success"><span class="info-icon">✅</span><span>Recharge Nextcloud dans le navigateur — l'erreur ne reviendra plus jamais sur les réseaux 192.168.x.x, 10.x.x.x et 172.16.x.x.</span></div>
+        <div class="info-box warning"><span class="info-icon">⚠️</span><span><strong>nano introuvable dans le conteneur ?</strong> Installe-le avec : <code>apt-get update &amp;&amp; apt-get install -y nano</code> — ou utilise <code>vi</code> déjà présent (<code>i</code> pour éditer, <code>Échap</code> puis <code>:wq</code> pour sauvegarder).</span></div>
+        <button class="done-btn" onclick="markDone(this,9)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+    <!-- STEP 10 -->
+    <div class="step" data-step="10">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-num">10</div>
+        <div class="step-title-wrap">
+          <div class="step-category">Trusted Domains — Bonus</div>
+          <div class="step-title">Script : mettre à jour l'IP automatiquement</div>
+        </div>
+        <span class="step-toggle">▼</span>
+      </div>
+      <div class="step-body"><div class="step-content">
+        <p class="step-desc">Si tu changes souvent de réseau et qu'une nouvelle IP sort des plages wildcard, ce script PowerShell détecte et met à jour ton IP en une seule commande.</p>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">1</div><div class="sub-text">Crée un fichier <span class="hl">update-ip.ps1</span> dans <span class="hl">D:\Nextcloud</span> avec ce contenu :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">update-ip.ps1</span><button class="copy-btn" onclick="copyCode(this,'c10script')">Copier</button></div>
+          <div class="code-body" id="c10script"><span class="co"># Détecte l'IP locale actuelle automatiquement</span>
+<span class="en">$ip</span> = (Get-NetIPAddress <span class="fl">-AddressFamily</span> IPv4 | Where-Object {
+    <span class="en">$_</span>.IPAddress <span class="fl">-notlike</span> <span class="st">"127.*"</span> <span class="fl">-and</span>
+    <span class="en">$_</span>.IPAddress <span class="fl">-notlike</span> <span class="st">"169.*"</span>
+} | Select-Object <span class="fl">-First</span> 1).IPAddress
+
+Write-Host <span class="st">"IP detectee : $ip"</span>
+
+<span class="co"># Met à jour trusted_domains dans Nextcloud</span>
+<span class="cm">docker</span> exec <span class="fl">-u</span> www-data nextcloud php occ config:system:set trusted_domains <span class="st">1</span> <span class="fl">--value=</span><span class="st">"$ip"</span>
+
+Write-Host <span class="st">"Nextcloud mis a jour !"</span>
+Write-Host <span class="st">"Acceder via : http://${ip}:8080"</span></div>
+        </div>
+        <div class="sub-steps">
+          <div class="sub-step"><div class="sub-num">2</div><div class="sub-text">Lance le script quand tu changes de réseau :</div></div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">PowerShell — Lancer le script</span><button class="copy-btn" onclick="copyCode(this,'c10run')">Copier</button></div>
+          <div class="code-body" id="c10run"><span class="cm">cd</span> <span class="st">D:\Nextcloud</span>
+.\update-ip.ps1</div>
+        </div>
+        <div class="info-box tip"><span class="info-icon">💡</span><span>Avec les wildcards de l'étape 9, tu n'auras presque jamais besoin de ce script. Utile uniquement si ton réseau utilise une plage d'IP non standard.</span></div>
+        <button class="done-btn" onclick="markDone(this,10)">✓  Étape terminée</button>
+      </div></div>
+    </div>
+
+  </div><!-- end steps -->
+
+  <div class="completion" id="completion">
+    <div class="completion-icon">🚀</div>
+    <h2>Installation terminée !</h2>
+    <p>Nextcloud tourne sur Docker avec WSL2 et est accessible depuis tous tes réseaux.</p>
+    <p>Accède à ton cloud personnel ici :</p>
+    <div class="url-box">🌐 &nbsp;http://localhost:8080</div>
+  </div>
+
+</div>
+
+<script>
+  const TOTAL = 10;
+  const completed = new Set();
+
+  function toggleStep(header) {
+    header.closest('.step').classList.toggle('open');
+  }
+
+  function markDone(btn, num) {
+    const step = btn.closest('.step');
+    step.classList.add('completed');
+    step.classList.remove('active', 'open');
+    completed.add(num);
+    btn.textContent = '✓  Complété !';
+    updateProgress();
+    const next = document.querySelector(`.step[data-step="${num + 1}"]`);
+    if (next) {
+      next.classList.add('active', 'open');
+      setTimeout(() => next.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
+    if (completed.size === TOTAL) {
+      setTimeout(() => {
+        document.getElementById('completion').classList.add('show');
+        document.getElementById('completion').scrollIntoView({ behavior: 'smooth' });
+      }, 300);
+    }
+  }
+
+  function updateProgress() {
+    const pct = (completed.size / TOTAL) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressCount').textContent = `${completed.size} / ${TOTAL}`;
+  }
+
+  function copyCode(btn, id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      btn.textContent = '✓ Copié !';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
